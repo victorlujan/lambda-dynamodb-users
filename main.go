@@ -25,24 +25,37 @@ func Handler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse,
 		}
 		err = dynamodb.SaveUser(user)
 		if err != nil {
-			return response("Error saving user", http.StatusInternalServerError), err
+			return response("Error to save the user", http.StatusBadRequest), err
 		}
 		return response("User saved", http.StatusOK), nil
 	}
 
 	if req.HTTPMethod == "GET" {
 		var user types.User
-		err:= json.Unmarshal([]byte(req.Body), &user)
+		err := json.Unmarshal([]byte(req.Body), &user)
 		if err != nil {
 			return response("Error de Unmarshal", http.StatusBadRequest), err
 		}
-		id:= user.ID
-		user , err = dynamodb.GetUser(id)
+		id := user.ID
+		user, err = dynamodb.GetUser(id)
 		if err != nil {
 			return response("Error getting user", http.StatusInternalServerError), err
 		}
 		userresponse, _ := json.Marshal(user)
 		return responseUser(userresponse, http.StatusOK), nil
+	}
+	if req.HTTPMethod =="DELETE"{
+		var user types.User
+		err := json.Unmarshal([]byte(req.Body), &user)
+		if err != nil {
+			return response("Error de Unmarshal", http.StatusBadRequest), err
+		}
+		id := user.ID
+		err = dynamodb.DeleteUser(id)
+		if err != nil {
+			return response("Error deleting user", http.StatusInternalServerError), err
+		}
+		return response("User deleted", http.StatusOK), nil
 	} else {
 		return response("Method not allowed", http.StatusMethodNotAllowed), nil
 	}

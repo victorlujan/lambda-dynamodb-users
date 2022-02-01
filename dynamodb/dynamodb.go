@@ -3,6 +3,8 @@ package dynamodb
 import (
 	"lambda-dynamodb-users/types"
 
+	errs "github.com/pkg/errors"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -12,21 +14,23 @@ import (
 const tableName = "Users"
 
 func SaveUser(user types.User) error {
-	userMap, err := dynamodbattribute.MarshalMap(user)
-	if err != nil {
-		return err
-	
-	}
+	exitst, _ := GetUser(user.ID)
 
-	dynamodbSession := createDynamoSession()
+	if exitst.ID == "" {
+		userMap, err := dynamodbattribute.MarshalMap(user)
+		if err != nil {
+			return err
+		}
+		dynamodbSession := createDynamoSession()
 
-	input := &dynamodb.PutItemInput{
-		Item:      userMap,
-		TableName: aws.String(tableName),
-	}
-	_, err = dynamodbSession.PutItem(input)
-	if err != nil {
-		return err
+		input := &dynamodb.PutItemInput{
+			Item:      userMap,
+			TableName: aws.String(tableName),
+		}
+		_, err = dynamodbSession.PutItem(input)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -54,8 +58,31 @@ func GetUser(id string) (types.User, error) {
 	if err != nil {
 		return types.User{}, err
 	}
+	if user.ID == "" {
+		return types.User{}, errs.New("User not found")
+	}
 
 	return user, nil
+}
+
+
+func DeleteUser(id string) error {
+	dynamodbSession := createDynamoSession()
+
+	input := &dynamodb.DeleteItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"id": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+	_, err := dynamodbSession.DeleteItem(input)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func createDynamoSession() *dynamodb.DynamoDB {
