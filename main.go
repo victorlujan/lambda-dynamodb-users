@@ -17,17 +17,20 @@ func main() {
 }
 
 func Handler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var user types.User
-	err := json.Unmarshal([]byte(req.Body), &user)
-	if err != nil {
-		return response("Error de Unmarshal", http.StatusBadRequest), err
+	if req.HTTPMethod == "POST" {
+		var user types.User
+		err := json.Unmarshal([]byte(req.Body), &user)
+		if err != nil {
+			return response("Error de Unmarshal", http.StatusBadRequest), err
+		}
+		err = dynamodb.SaveUser(user)
+		if err != nil {
+			return response("Error saving user", http.StatusInternalServerError), err
+		}
+		return response("User saved", http.StatusOK), nil
+	}else{
+	return response("Method not allowed", http.StatusMethodNotAllowed), nil
 	}
-	err = dynamodb.SaveUser(user)
-	if err != nil {
-		return response("Error saving user", http.StatusInternalServerError), err
-	}
-	return response("User saved", http.StatusOK), nil
-
 }
 
 func response(body string, statusCode int) events.APIGatewayProxyResponse {
