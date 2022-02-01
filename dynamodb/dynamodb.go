@@ -33,6 +33,31 @@ func SaveUser(user types.User) error {
 
 }
 
+func GetUser(id string) (types.User, error) {
+	dynamodbSession := createDynamoSession()
+
+	input := &dynamodb.GetItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"id": {
+				S: aws.String(id),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+	result, err := dynamodbSession.GetItem(input)
+	if err != nil {
+		return types.User{}, err
+	}
+
+	var user types.User
+	err = dynamodbattribute.UnmarshalMap(result.Item, &user)
+	if err != nil {
+		return types.User{}, err
+	}
+
+	return user, nil
+}
+
 func createDynamoSession() *dynamodb.DynamoDB {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,

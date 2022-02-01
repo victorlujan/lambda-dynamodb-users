@@ -28,8 +28,33 @@ func Handler(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse,
 			return response("Error saving user", http.StatusInternalServerError), err
 		}
 		return response("User saved", http.StatusOK), nil
-	}else{
-	return response("Method not allowed", http.StatusMethodNotAllowed), nil
+	}
+
+	if req.HTTPMethod == "GET" {
+		var user types.User
+		err:= json.Unmarshal([]byte(req.Body), &user)
+		if err != nil {
+			return response("Error de Unmarshal", http.StatusBadRequest), err
+		}
+		id:= user.ID
+		user , err = dynamodb.GetUser(id)
+		if err != nil {
+			return response("Error getting user", http.StatusInternalServerError), err
+		}
+		userresponse, _ := json.Marshal(user)
+		return responseUser(userresponse, http.StatusOK), nil
+	} else {
+		return response("Method not allowed", http.StatusMethodNotAllowed), nil
+	}
+}
+
+func responseUser(body []byte, statusCode int) events.APIGatewayProxyResponse {
+	return events.APIGatewayProxyResponse{
+		Body:       string(body),
+		StatusCode: statusCode,
+		Headers: map[string]string{
+			"Access-Control-Allow-Origin": "*",
+		},
 	}
 }
 
