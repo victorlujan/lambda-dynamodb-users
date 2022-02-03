@@ -65,6 +65,39 @@ func GetUser(id string) (types.User, error) {
 	return user, nil
 }
 
+func QueryUser(email string) (types.User, error) {
+	dynamodbSession := createDynamoSession()
+
+	input := &dynamodb.QueryInput{
+		TableName: aws.String(tableName),
+		IndexName: aws.String("email-index"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":email": {
+				S: aws.String(email),
+			},
+		},
+		KeyConditionExpression: aws.String("email = :email"),
+	}
+	result, err := dynamodbSession.Query(input)
+	if err != nil {
+		return types.User{}, err
+	}
+
+	var users []types.User
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &users)
+	if err != nil {
+		return types.User{}, err
+	}
+
+	if len(users) == 0 {
+		return types.User{}, errs.New("User not found")
+	}
+
+	return users[0], nil
+}
+
+
+
 
 func DeleteUser(id string) error {
 	dynamodbSession := createDynamoSession()
@@ -83,6 +116,32 @@ func DeleteUser(id string) error {
 	}
 
 	return nil
+}
+
+func ScanUsers(user types.User) ([]types.User, error) {
+	dynamodbSession := createDynamoSession()
+
+	input := &dynamodb.ScanInput{
+		TableName: aws.String(tableName),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":id": {
+				S: aws.String(user.ID),
+			},
+		},
+		FilterExpression: aws.String("id = :id"),
+	}
+	result, err := dynamodbSession.Scan(input)
+	if err != nil {
+		return []types.User{}, err
+	}
+
+	var users []types.User
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &users)
+	if err != nil {
+		return []types.User{}, err
+	}
+
+	return users, nil
 }
 
 func createDynamoSession() *dynamodb.DynamoDB {
