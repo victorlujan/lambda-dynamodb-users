@@ -2,6 +2,8 @@ package dynamodb
 
 import (
 	"lambda-dynamodb-users/types"
+	"math/rand"
+	"strconv"
 
 	errs "github.com/pkg/errors"
 
@@ -14,14 +16,30 @@ import (
 const tableName = "Users"
 
 func SaveUser(user types.User) error {
-	exitst, _ := GetUser(user.ID)
+	dynamodbSession := createDynamoSession()
 
-	if exitst.ID == "" {
+	queryinput := &dynamodb.QueryInput{
+		TableName:              aws.String(tableName),
+		IndexName:              aws.String("email-index"),
+		KeyConditionExpression: aws.String("email = :email"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":email": {
+				S: aws.String(user.Email),
+			},
+		},
+	}
+	result, _ := dynamodbSession.Query(queryinput)
+	if len(result.Items) != 0 {
+		return errs.New("User already exists")
+	} else {
+		if user.ID == "" {
+			user.ID = strconv.Itoa(rand.Intn(1000000000000000))
+		}
+
 		userMap, err := dynamodbattribute.MarshalMap(user)
 		if err != nil {
 			return err
 		}
-		dynamodbSession := createDynamoSession()
 
 		input := &dynamodb.PutItemInput{
 			Item:      userMap,
@@ -31,9 +49,10 @@ func SaveUser(user types.User) error {
 		if err != nil {
 			return err
 		}
-	}
 
-	return nil
+		return nil
+
+	}
 
 }
 
@@ -95,9 +114,6 @@ func QueryUser(email string) (types.User, error) {
 
 	return users[0], nil
 }
-
-
-
 
 func DeleteUser(id string) error {
 	dynamodbSession := createDynamoSession()
